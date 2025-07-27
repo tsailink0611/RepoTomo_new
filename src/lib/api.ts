@@ -1,6 +1,16 @@
 import { supabase } from './supabase'
-import { mockStaff, mockReportTemplates, mockQuestions } from './mockData'
-import { Staff, ReportTemplate, Question, Submission, ApiResponse } from '../types'
+import { mockStaff, mockReportTemplates } from './simpleMockData'
+import { Staff, ReportTemplate, Question, Submission } from '../types/database'
+
+// ApiResponseは循環参照を避けるため直接定義
+export interface ApiResponse<T = any> {
+  data?: T
+  error?: string
+  message?: string
+}
+
+// mockQuestionsは一時的に空配列として定義
+const mockQuestions: any[] = []
 
 const isDevelopment = import.meta.env.VITE_ENVIRONMENT === 'development'
 

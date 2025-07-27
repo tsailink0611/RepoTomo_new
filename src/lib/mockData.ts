@@ -1,5 +1,4 @@
-import { Staff, ReportTemplate, Submission } from '../types'
-import { Question } from '../types/database'
+import { Staff, ReportTemplate, Submission, Question } from '../types/database'
 
 // モックスタッフデータ
 export const mockStaff: Staff[] = [

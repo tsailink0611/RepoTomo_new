@@ -1,5 +1,7 @@
 export * from './database'
 
+import { Staff } from './database'
+
 // 認証関連の型
 export interface User {
   id: string

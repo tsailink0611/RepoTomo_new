@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { User, AuthState } from '../types'
-import { mockStaff } from '../lib/mockData'
+import { User, AuthState } from '../types/auth.types'
+import { mockStaff } from '../lib/simpleMockData'
 
 export const useAuth = () => {
   const [authState, setAuthState] = useState<AuthState>({
