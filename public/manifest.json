@@ -1,0 +1,30 @@
+{
+  "name": "RepoTomo - 報告書管理システム",
+  "short_name": "RepoTomo",
+  "description": "心理的安全性重視の報告書管理システム",
+  "theme_color": "#ea580c",
+  "background_color": "#fff7ed",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "screenshots": [
+    {
+      "src": "vite.svg",
+      "sizes": "640x480",
+      "type": "image/svg+xml",
+      "form_factor": "wide"
+    }
+  ],
+  "lang": "ja",
+  "dir": "ltr"
+}
