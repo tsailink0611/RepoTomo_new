@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
+import { useAuth } from './useAuth'
 
 export interface ReportTemplate {
   id: string
@@ -8,215 +10,172 @@ export interface ReportTemplate {
   frequency: string
   deadline: string
   category: string
-  createdAt: string
-  isActive: boolean
+  created_at: string
+  is_active: boolean
 }
 
 export interface ReportSubmission {
   id: string
-  reportId: string
-  reportName: string
-  userId: string
-  userName: string
-  status: '提出完了' | '質問あり' | '一部完了' | '延長希望'
-  documentUrl?: string
+  staff_id: string
+  report_id: string
+  status: 'pending' | 'completed' | 'partial' | 'has_question' | 'extension_requested'
+  answers?: any
+  mood?: 'happy' | 'neutral' | 'need_help'
+  has_question: boolean
+  question?: string
   message?: string
-  submittedAt: string
+  document_url?: string
+  attachments?: any
+  submitted_at: string
+  due_date?: string
+  completed_at?: string
+  admin_response?: string
+  admin_responded_at?: string
+  admin_responded_by?: string
+  created_at: string
+  // リレーション
+  staff?: any
+  report?: ReportTemplate
 }
 
-const STORAGE_KEYS = {
-  REPORT_TEMPLATES: 'repotomo_report_templates',
-  REPORT_SUBMISSIONS: 'repotomo_report_submissions'
-}
-
-// デフォルトの報告書テンプレート
-const DEFAULT_TEMPLATES: ReportTemplate[] = [
-  {
-    id: '1',
-    name: '日報',
-    description: '今日の業務内容を報告',
-    emoji: '📝',
-    frequency: 'daily',
-    deadline: '毎日 18:00まで',
-    category: 'regular',
-    createdAt: '2025-01-01T00:00:00.000Z',
-    isActive: true
-  },
-  {
-    id: '2',
-    name: '週報',
-    description: '今週の振り返り',
-    emoji: '📊',
-    frequency: 'weekly',
-    deadline: '毎週金曜 17:00まで',
-    category: 'regular',
-    createdAt: '2025-01-01T00:00:00.000Z',
-    isActive: true
-  },
-  {
-    id: '3',
-    name: '月報',
-    description: '月次業績の報告',
-    emoji: '📈',
-    frequency: 'monthly',
-    deadline: '毎月末日 17:00まで',
-    category: 'regular',
-    createdAt: '2025-01-01T00:00:00.000Z',
-    isActive: true
-  },
-  {
-    id: '4',
-    name: 'ネパール育成週報',
-    description: '育成進捗の報告',
-    emoji: '🇳🇵',
-    frequency: 'weekly',
-    deadline: '毎週日曜 20:00まで',
-    category: 'training',
-    createdAt: '2025-01-01T00:00:00.000Z',
-    isActive: true
-  },
-  {
-    id: '5',
-    name: 'MTG議事録',
-    description: '会議の記録と共有',
-    emoji: '📋',
-    frequency: 'custom',
-    deadline: '会議後24時間以内',
-    category: 'event',
-    createdAt: '2025-01-01T00:00:00.000Z',
-    isActive: true
-  },
-  {
-    id: '6',
-    name: '衛生チェック報告',
-    description: '店舗衛生状況の確認',
-    emoji: '🧽',
-    frequency: 'daily',
-    deadline: '毎日 営業終了時',
-    category: 'maintenance',
-    createdAt: '2025-01-01T00:00:00.000Z',
-    isActive: true
-  },
-  {
-    id: '7',
-    name: 'アルバイト報告',
-    description: 'アルバイトの状況報告',
-    emoji: '👥',
-    frequency: 'monthly',
-    deadline: '毎月15日 17:00まで',
-    category: 'regular',
-    createdAt: '2025-01-01T00:00:00.000Z',
-    isActive: true
-  },
-  {
-    id: '8',
-    name: 'シフト確定',
-    description: '来月のシフト表提出',
-    emoji: '📅',
-    frequency: 'monthly',
-    deadline: '毎月25日 17:00まで',
-    category: 'regular',
-    createdAt: '2025-01-01T00:00:00.000Z',
-    isActive: true
-  },
-  {
-    id: '9',
-    name: '改善提案',
-    description: 'アイデアを共有',
-    emoji: '💡',
-    frequency: 'custom',
-    deadline: '随時受付中',
-    category: 'special',
-    createdAt: '2025-01-01T00:00:00.000Z',
-    isActive: true
-  },
-  {
-    id: '10',
-    name: 'その他・特別報告',
-    description: 'イベント・研修・特別業務等',
-    emoji: '📋',
-    frequency: 'custom',
-    deadline: '不定期・管理者指定',
-    category: 'special',
-    createdAt: '2025-01-01T00:00:00.000Z',
-    isActive: true
-  }
-]
 
 export const useReports = () => {
+  const { user } = useAuth()
   const [reportTemplates, setReportTemplates] = useState<ReportTemplate[]>([])
   const [reportSubmissions, setReportSubmissions] = useState<ReportSubmission[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // 初期化：ローカルストレージからデータを読み込み
-  useEffect(() => {
+  // 報告書テンプレートを取得
+  const fetchReportTemplates = async () => {
     try {
-      const savedTemplates = localStorage.getItem(STORAGE_KEYS.REPORT_TEMPLATES)
-      const savedSubmissions = localStorage.getItem(STORAGE_KEYS.REPORT_SUBMISSIONS)
+      const { data, error } = await supabase
+        .from('report_templates')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
 
-      if (savedTemplates) {
-        setReportTemplates(JSON.parse(savedTemplates))
-      } else {
-        // 初回起動時はデフォルトテンプレートを設定
-        setReportTemplates(DEFAULT_TEMPLATES)
-        localStorage.setItem(STORAGE_KEYS.REPORT_TEMPLATES, JSON.stringify(DEFAULT_TEMPLATES))
-      }
-
-      if (savedSubmissions) {
-        setReportSubmissions(JSON.parse(savedSubmissions))
-      }
-    } catch (error) {
-      console.error('データの読み込みに失敗しました:', error)
-      setReportTemplates(DEFAULT_TEMPLATES)
+      if (error) throw error
+      setReportTemplates(data || [])
+    } catch (err) {
+      console.error('報告書テンプレート取得エラー:', err)
+      setError('報告書テンプレートの取得に失敗しました')
     }
-    
-    setIsLoading(false)
-  }, [])
+  }
+
+  // 報告書提出履歴を取得
+  const fetchReportSubmissions = async () => {
+    if (!user?.staff?.id) return
+
+    try {
+      const { data, error } = await supabase
+        .from('submissions')
+        .select(`
+          *,
+          staff:staff_id(*),
+          report:report_id(*)
+        `)
+        .eq('staff_id', user.staff.id)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setReportSubmissions(data || [])
+    } catch (err) {
+      console.error('報告書提出履歴取得エラー:', err)
+      setError('報告書提出履歴の取得に失敗しました')
+    }
+  }
+
+  // 初期化：Supabaseからデータを読み込み
+  useEffect(() => {
+    const initializeData = async () => {
+      setIsLoading(true)
+      setError(null)
+      
+      try {
+        await Promise.all([
+          fetchReportTemplates(),
+          fetchReportSubmissions()
+        ])
+      } catch (err) {
+        console.error('データ初期化エラー:', err)
+        setError('データの初期化に失敗しました')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    initializeData()
+  }, [user?.staff?.id])
 
   // 報告書テンプレートを追加
-  const addReportTemplate = (template: Omit<ReportTemplate, 'id' | 'createdAt' | 'isActive'>) => {
-    const newTemplate: ReportTemplate = {
-      ...template,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      isActive: true
+  const addReportTemplate = async (template: Omit<ReportTemplate, 'id' | 'created_at' | 'is_active'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('report_templates')
+        .insert({
+          ...template,
+          is_active: true
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // ローカル状態を更新
+      setReportTemplates(prev => [data, ...prev])
+      return data
+    } catch (err) {
+      console.error('報告書テンプレート追加エラー:', err)
+      throw new Error('報告書テンプレートの追加に失敗しました')
     }
-    
-    const updatedTemplates = [...reportTemplates, newTemplate]
-    setReportTemplates(updatedTemplates)
-    localStorage.setItem(STORAGE_KEYS.REPORT_TEMPLATES, JSON.stringify(updatedTemplates))
-    
-    return newTemplate
   }
 
   // 報告書提出を追加
-  const addReportSubmission = (submission: Omit<ReportSubmission, 'id' | 'submittedAt'>) => {
-    const newSubmission: ReportSubmission = {
-      ...submission,
-      id: Date.now().toString(),
-      submittedAt: new Date().toISOString()
+  const addReportSubmission = async (submission: Omit<ReportSubmission, 'id' | 'submitted_at' | 'created_at'>) => {
+    if (!user?.staff?.id) {
+      throw new Error('ログインが必要です')
     }
-    
-    const updatedSubmissions = [...reportSubmissions, newSubmission]
-    setReportSubmissions(updatedSubmissions)
-    localStorage.setItem(STORAGE_KEYS.REPORT_SUBMISSIONS, JSON.stringify(updatedSubmissions))
-    
-    return newSubmission
+
+    try {
+      const { data, error } = await supabase
+        .from('submissions')
+        .insert({
+          ...submission,
+          staff_id: user.staff.id,
+          submitted_at: new Date().toISOString()
+        })
+        .select(`
+          *,
+          staff:staff_id(*),
+          report:report_id(*)
+        `)
+        .single()
+
+      if (error) throw error
+
+      // ローカル状態を更新
+      setReportSubmissions(prev => [data, ...prev])
+      return data
+    } catch (err) {
+      console.error('報告書提出エラー:', err)
+      throw new Error('報告書の提出に失敗しました')
+    }
   }
 
   // 提出状況の統計を取得
   const getSubmissionStats = () => {
     const today = new Date().toDateString()
     const todaySubmissions = reportSubmissions.filter(
-      sub => new Date(sub.submittedAt).toDateString() === today
+      sub => new Date(sub.submitted_at).toDateString() === today
     )
 
     return {
       todayTotal: todaySubmissions.length,
-      todayCompleted: todaySubmissions.filter(sub => sub.status === '提出完了').length,
-      todayQuestions: todaySubmissions.filter(sub => sub.status === '質問あり').length,
-      todayPartial: todaySubmissions.filter(sub => sub.status === '一部完了').length,
-      todayExtension: todaySubmissions.filter(sub => sub.status === '延長希望').length,
+      todayCompleted: todaySubmissions.filter(sub => sub.status === 'completed').length,
+      todayQuestions: todaySubmissions.filter(sub => sub.status === 'has_question').length,
+      todayPartial: todaySubmissions.filter(sub => sub.status === 'partial').length,
+      todayExtension: todaySubmissions.filter(sub => sub.status === 'extension_requested').length,
       totalSubmissions: reportSubmissions.length
     }
   }
@@ -224,17 +183,67 @@ export const useReports = () => {
   // 最近の提出履歴を取得
   const getRecentSubmissions = (limit: number = 10) => {
     return reportSubmissions
-      .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
+      .sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())
       .slice(0, limit)
+  }
+
+  // 報告書提出を更新
+  const updateReportSubmission = async (id: string, updates: Partial<ReportSubmission>) => {
+    try {
+      const { data, error } = await supabase
+        .from('submissions')
+        .update(updates)
+        .eq('id', id)
+        .select(`
+          *,
+          staff:staff_id(*),
+          report:report_id(*)
+        `)
+        .single()
+
+      if (error) throw error
+
+      // ローカル状態を更新
+      setReportSubmissions(prev => 
+        prev.map(submission => 
+          submission.id === id ? data : submission
+        )
+      )
+      return data
+    } catch (err) {
+      console.error('報告書更新エラー:', err)
+      throw new Error('報告書の更新に失敗しました')
+    }
+  }
+
+  // データを再取得
+  const refetch = async () => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      await Promise.all([
+        fetchReportTemplates(),
+        fetchReportSubmissions()
+      ])
+    } catch (err) {
+      console.error('データ再取得エラー:', err)
+      setError('データの再取得に失敗しました')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return {
     reportTemplates,
     reportSubmissions,
     isLoading,
+    error,
     addReportTemplate,
     addReportSubmission,
+    updateReportSubmission,
     getSubmissionStats,
-    getRecentSubmissions
+    getRecentSubmissions,
+    refetch
   }
 }

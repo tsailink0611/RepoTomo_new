@@ -8,6 +8,8 @@ import { useNotifications } from './hooks/useNotifications'
 import { useReminders } from './hooks/useReminders'
 import { PWAInstallPrompt, IOSInstallGuide } from './components/PWAInstallPrompt'
 import { OfflineIndicator } from './components/OfflineIndicator'
+import { SalesAnalyticsDashboard } from './components/sales/SalesAnalyticsDashboard'
+import { SupabaseConnectionTest } from './components/SupabaseConnectionTest'
 
 function HomePage() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
@@ -130,6 +132,9 @@ function HomePage() {
         <div className="text-center mt-12 text-gray-500">
           <p>困ったときはお気軽にお声がけください</p>
         </div>
+
+        {/* Supabase接続テスト */}
+        <SupabaseConnectionTest />
       </div>
     </div>
   )
@@ -410,7 +415,7 @@ function SimpleAdminDashboard() {
         </div>
 
         {/* 管理機能 */}
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-4">
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold mb-4">📊 報告書テンプレート管理</h3>
             <button className="w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded transition mb-2">
@@ -456,6 +461,22 @@ function SimpleAdminDashboard() {
               className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition"
             >
               📢 システム通知
+            </button>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold mb-4">💰 売上分析</h3>
+            <Link 
+              to="/admin/sales"
+              className="block w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2 rounded transition mb-2 text-center"
+            >
+              📈 売上ダッシュボード
+            </Link>
+            <button className="w-full bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded transition mb-2">
+              🤖 AI分析レポート
+            </button>
+            <button className="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition">
+              🚨 売上アラート設定
             </button>
           </div>
         </div>
@@ -1093,6 +1114,14 @@ function App() {
           <Route 
             path="/admin" 
             element={<AdminLoginPage />} 
+          />
+          <Route 
+            path="/admin/sales" 
+            element={
+              <ProtectedRoute requireRole="MANAGER">
+                <SalesAnalyticsDashboard />
+              </ProtectedRoute>
+            } 
           />
         </Routes>
       </div>

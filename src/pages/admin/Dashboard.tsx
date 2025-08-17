@@ -1,18 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
+import { useAdminData, type AdminSubmission } from '../../hooks/useAdminData'
 import { Button } from '../../components/common/Button'
 import { Card } from '../../components/common/Card'
-
-interface MockSubmission {
-  id: string
-  staffName: string
-  reportTitle: string
-  mood: 'happy' | 'neutral' | 'need_help'
-  hasQuestion: boolean
-  question?: string
-  submittedAt: string
-  isAnswered: boolean
-}
 
 export const AdminDashboard = () => {
   const { user, logout } = useAuth()
@@ -234,6 +224,11 @@ export const AdminDashboard = () => {
               </table>
             </div>
           </Card>
+        </div>
+
+        {/* デバッグ情報 */}
+        <div className="mt-8 text-xs text-gray-500">
+          <p>総提出数: {stats.totalSubmissions} | 完了数: {stats.completedSubmissions} | 総スタッフ数: {stats.totalStaff}</p>
         </div>
       </main>
     </div>

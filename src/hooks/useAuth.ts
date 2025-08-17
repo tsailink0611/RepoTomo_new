@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase, getSession, getUser } from '../lib/supabase'
-import { mockStaff } from '../lib/simpleMockData'
+import { supabase } from '../lib/supabase'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import type { Staff } from '../types/database'
 
@@ -23,51 +22,27 @@ export const useAuth = () => {
   })
 
   useEffect(() => {
-    // 開発モード：ローカルストレージからモックユーザーを復元
-    const isDevelopment = import.meta.env.VITE_ENVIRONMENT === 'development'
-    
-    if (isDevelopment) {
-      const savedUser = localStorage.getItem('repotomo_user')
-      if (savedUser) {
-        const user = JSON.parse(savedUser)
-        setAuthState({
-          user,
-          isLoading: false,
-          isAuthenticated: true
-        })
-        return
-      }
-    }
-
-    // 本番モード：Supabaseセッションを確認
+    // 認証状態の初期化
     const initializeAuth = async () => {
       try {
-        const session = await getSession()
-        if (session?.user) {
-          // スタッフ情報を取得
-          const { data: staffData } = await supabase
-            .from('staff')
-            .select('*')
-            .eq('id', session.user.id)
-            .single()
-
-          const appUser: AppUser = {
-            ...session.user,
-            staff: staffData || undefined
-          }
-
+        // 開発モード：ローカルストレージからモックユーザーを復元
+        const savedUser = localStorage.getItem('repotomo_user')
+        if (savedUser) {
+          const user = JSON.parse(savedUser)
           setAuthState({
-            user: appUser,
+            user,
             isLoading: false,
             isAuthenticated: true
           })
-        } else {
-          setAuthState({
-            user: null,
-            isLoading: false,
-            isAuthenticated: false
-          })
+          return
         }
+
+        // 未認証状態
+        setAuthState({
+          user: null,
+          isLoading: false,
+          isAuthenticated: false
+        })
       } catch (error) {
         console.error('認証初期化エラー:', error)
         setAuthState({
@@ -78,20 +53,17 @@ export const useAuth = () => {
       }
     }
 
-    if (!isDevelopment) {
-      initializeAuth()
-    } else {
-      setAuthState(prev => ({ ...prev, isLoading: false }))
-    }
+    initializeAuth()
 
     // Supabase認証状態の変更を監視
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
+          // スタッフ情報を取得
           const { data: staffData } = await supabase
             .from('staff')
             .select('*')
-            .eq('id', session.user.id)
+            .eq('email', session.user.email)
             .single()
 
           const appUser: AppUser = {
@@ -105,6 +77,7 @@ export const useAuth = () => {
             isAuthenticated: true
           })
         } else if (event === 'SIGNED_OUT') {
+          localStorage.removeItem('repotomo_user')
           setAuthState({
             user: null,
             isLoading: false,
@@ -119,31 +92,51 @@ export const useAuth = () => {
     }
   }, [])
 
-  // 開発モード用のログイン（モックデータ使用）
+  // 実データログイン：スタッフIDでログイン（簡易版）
   const loginAsStaff = async (staffId: string) => {
-    const isDevelopment = import.meta.env.VITE_ENVIRONMENT === 'development'
+    setAuthState(prev => ({ ...prev, isLoading: true }))
     
-    if (isDevelopment) {
-      const staff = mockStaff.find(s => s.id === staffId)
-      if (staff) {
-        const user: AppUser = {
-          id: staff.id,
-          email: `${staff.staff_id}@demo.com`,
-          staff,
-          // SupabaseUserの必須プロパティを追加
-          aud: 'authenticated',
-          created_at: new Date().toISOString(),
-          app_metadata: {},
-          user_metadata: {}
-        } as AppUser
-        
-        localStorage.setItem('repotomo_user', JSON.stringify(user))
-        setAuthState({
-          user,
-          isLoading: false,
-          isAuthenticated: true
-        })
+    try {
+      // スタッフ情報を取得
+      const { data: staffData, error } = await supabase
+        .from('staff')
+        .select('*')
+        .eq('staff_id', staffId)
+        .single()
+      
+      if (error || !staffData) {
+        throw new Error('スタッフが見つかりません')
       }
+      
+      // 実データでのユーザーオブジェクト作成
+      const user: AppUser = {
+        id: staffData.id,
+        email: staffData.email || `${staffData.staff_id}@repotomo.app`,
+        staff: staffData,
+        // SupabaseUserの必須プロパティを追加
+        aud: 'authenticated',
+        created_at: staffData.created_at,
+        app_metadata: {},
+        user_metadata: {
+          staff_role: staffData.role,
+          staff_name: staffData.name
+        }
+      } as AppUser
+      
+      localStorage.setItem('repotomo_user', JSON.stringify(user))
+      setAuthState({
+        user,
+        isLoading: false,
+        isAuthenticated: true
+      })
+    } catch (error) {
+      console.error('ログインエラー:', error)
+      setAuthState({
+        user: null,
+        isLoading: false,
+        isAuthenticated: false
+      })
+      throw error
     }
   }
 
@@ -152,16 +145,14 @@ export const useAuth = () => {
     setAuthState(prev => ({ ...prev, isLoading: true }))
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password
       })
 
-      if (error) {
-        throw error
-      }
+      if (error) throw error
 
-      // 認証状態の変更は onAuthStateChange で自動処理される
+      // 成功時は onAuthStateChange で処理される
     } catch (error) {
       console.error('ログインエラー:', error)
       setAuthState(prev => ({ ...prev, isLoading: false }))
@@ -169,51 +160,87 @@ export const useAuth = () => {
     }
   }
 
-  // LINEログイン（将来実装）
-  const loginWithLine = async () => {
+  // サインアップ
+  const signUp = async (email: string, password: string, staffData: Partial<Staff>) => {
     setAuthState(prev => ({ ...prev, isLoading: true }))
     
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
         options: {
-          redirectTo: window.location.origin
+          data: staffData
         }
       })
 
-      if (error) {
-        throw error
-      }
+      if (error) throw error
     } catch (error) {
-      console.error('LINEログインエラー:', error)
+      console.error('サインアップエラー:', error)
       setAuthState(prev => ({ ...prev, isLoading: false }))
       throw error
     }
   }
 
+  // ログアウト
   const logout = async () => {
-    const isDevelopment = import.meta.env.VITE_ENVIRONMENT === 'development'
-    
-    if (isDevelopment) {
+    try {
       localStorage.removeItem('repotomo_user')
+      
+      // Supabaseからもログアウト
+      const { error } = await supabase.auth.signOut()
+      if (error) console.error('Supabaseログアウトエラー:', error)
+      
       setAuthState({
         user: null,
         isLoading: false,
         isAuthenticated: false
       })
-    } else {
-      await supabase.auth.signOut()
+    } catch (error) {
+      console.error('ログアウトエラー:', error)
     }
-    
-    // ログアウト後はホームページに強制遷移
-    window.location.href = '/'
+  }
+
+  // スタッフ情報の更新
+  const updateStaffInfo = async (updates: Partial<Staff>) => {
+    if (!authState.user?.staff?.id) return
+
+    try {
+      const { data, error } = await supabase
+        .from('staff')
+        .update(updates)
+        .eq('id', authState.user.staff.id)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // ローカル状態を更新
+      const updatedUser = {
+        ...authState.user,
+        staff: data
+      }
+
+      setAuthState(prev => ({
+        ...prev,
+        user: updatedUser
+      }))
+
+      localStorage.setItem('repotomo_user', JSON.stringify(updatedUser))
+      return data
+    } catch (error) {
+      console.error('スタッフ情報更新エラー:', error)
+      throw error
+    }
   }
 
   return {
-    ...authState,
+    user: authState.user,
+    isLoading: authState.isLoading,
+    isAuthenticated: authState.isAuthenticated,
     login,
-    logout,
     loginAsStaff,
-    loginWithLine
+    signUp,
+    logout,
+    updateStaffInfo
   }
 }
