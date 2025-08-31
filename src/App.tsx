@@ -560,14 +560,14 @@ function NewReportModal({ onClose }: { onClose: () => void }) {
   const [deadline, setDeadline] = useState('')
   const [category, setCategory] = useState('regular')
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!reportName.trim()) {
       alert('報告書名を入力してください')
       return
     }
     
     try {
-      const newReport = addReportTemplate({
+      const newReport = await addReportTemplate({
         name: reportName,
         description: reportDescription,
         emoji: emoji,
@@ -576,12 +576,15 @@ function NewReportModal({ onClose }: { onClose: () => void }) {
         category: category
       })
       
-      alert(`新しい報告書「${reportName}」を作成しました！`)
+      alert(`新しい報告書「${reportName}」を作成しました！スタッフページで確認できます。`)
       console.log('新規報告書が作成されました:', newReport)
       onClose()
+      
+      // ページを再読み込みして最新データを表示
+      window.location.reload()
     } catch (error) {
       console.error('報告書の作成に失敗しました:', error)
-      alert('報告書の作成に失敗しました。もう一度お試しください。')
+      alert(`報告書の作成に失敗しました：${error.message}`)
     }
   }
 
