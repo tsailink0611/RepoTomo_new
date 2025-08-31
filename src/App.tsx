@@ -227,7 +227,7 @@ function TestPage() {
 
 function SimpleAdminDashboard() {
   const { user, logout } = useAuth()
-  const { getSubmissionStats, getRecentSubmissions } = useReports()
+  const { getSubmissionStats, getRecentSubmissions, reportTemplates } = useReports()
   const { sendQuestionResponse, sendSystemNotification, notifications, getUnreadCount, markAsRead } = useNotifications()
   const { sendReminders, sendTestReminder } = useReminders()
   const [showNewReportModal, setShowNewReportModal] = useState(false)
