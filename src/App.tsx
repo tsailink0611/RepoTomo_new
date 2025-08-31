@@ -385,6 +385,19 @@ function SimpleAdminDashboard() {
                         {submission.message && (
                           <p className="text-sm text-gray-500 mt-1">{submission.message}</p>
                         )}
+                        {submission.documentUrl && (
+                          <div className="flex items-center mt-2">
+                            <span className="text-blue-500 mr-2">📎</span>
+                            <a 
+                              href={submission.documentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 text-sm underline"
+                            >
+                              添付ファイルを確認
+                            </a>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <button 
@@ -511,19 +524,21 @@ function SimpleAdminDashboard() {
           </div>
 
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">💰 売上分析</h3>
-            <Link 
-              to="/admin/sales"
-              className="block w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2 rounded transition mb-2 text-center"
-            >
-              📈 売上ダッシュボード
-            </Link>
-            <button className="w-full bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded transition mb-2">
-              🤖 AI分析レポート
-            </button>
-            <button className="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition">
-              🚨 売上アラート設定
-            </button>
+            <h3 className="text-lg font-semibold mb-4">📊 システム統計</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-gray-600">総スタッフ数</span>
+                <span className="font-semibold">{reportTemplates.length} 人</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-gray-600">アクティブテンプレート</span>
+                <span className="font-semibold">{reportTemplates.filter(t => t.is_active).length} 個</span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-gray-600">今月の総提出数</span>
+                <span className="font-semibold">{stats.totalSubmissions} 件</span>
+              </div>
+            </div>
           </div>
         </div>
       </main>
