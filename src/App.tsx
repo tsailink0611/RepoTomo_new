@@ -759,6 +759,12 @@ function ReportSubmissionModal({
 
   const handleSubmit = async () => {
     try {
+      console.log('=== 提出処理開始 ===')
+      console.log('reportName:', reportName)
+      console.log('selectedAction:', selectedAction)
+      console.log('user:', user)
+      console.log('reportTemplates:', reportTemplates)
+      
       // 状態を英語のenumに変換
       const statusMap: Record<string, 'completed' | 'has_question' | 'partial' | 'extension_requested'> = {
         '提出完了': 'completed',
@@ -769,18 +775,25 @@ function ReportSubmissionModal({
 
       // 報告書テンプレートをIDで検索（報告書名から）
       const template = reportTemplates.find(t => t.name === reportName)
+      console.log('見つかったテンプレート:', template)
       
       if (!template) {
+        console.error('テンプレートが見つかりません。reportName:', reportName)
+        console.error('利用可能なテンプレート:', reportTemplates.map(t => t.name))
         throw new Error('報告書テンプレートが見つかりません')
       }
 
-      const submission = await addReportSubmission({
+      const submissionData = {
         report_id: template.id,
         status: statusMap[selectedAction],
         document_url: documentUrl || undefined,
         message: message || undefined,
         has_question: selectedAction === '質問あり'
-      })
+      }
+      console.log('提出データ:', submissionData)
+
+      const submission = await addReportSubmission(submissionData)
+      console.log('提出成功:', submission)
       
       // 管理者に通知を送信
       const staffName = user?.staff?.name || user?.email || '匿名ユーザー'
@@ -797,11 +810,14 @@ function ReportSubmissionModal({
       })
       
       alert(`${reportName}の${selectedAction}を記録しました！管理者に通知も送信されました。`)
-      console.log('提出記録:', submission)
+      console.log('提出記録完了:', submission)
       onClose()
     } catch (error) {
-      console.error('提出の記録に失敗しました:', error)
-      alert('提出の記録に失敗しました。もう一度お試しください。')
+      console.error('=== 提出エラー詳細 ===')
+      console.error('エラー:', error)
+      console.error('エラーメッセージ:', error.message)
+      console.error('エラー全体:', JSON.stringify(error, null, 2))
+      alert(`提出の記録に失敗しました。エラー: ${error.message}`)
     }
   }
 

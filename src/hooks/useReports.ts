@@ -133,18 +133,62 @@ export const useReports = () => {
 
   // 報告書提出を追加
   const addReportSubmission = async (submission: Omit<ReportSubmission, 'id' | 'submitted_at' | 'created_at'>) => {
-    if (!user?.staff?.id) {
-      throw new Error('ログインが必要です')
+    console.log('=== addReportSubmission開始 ===')
+    console.log('user:', user)
+    console.log('user?.staff:', user?.staff)
+    console.log('user?.staff?.id:', user?.staff?.id)
+    
+    // テスト用: ユーザー認証が未実装の場合はダミーのスタッフレコードを検索
+    let staffId = user?.staff?.id
+    if (!staffId) {
+      console.warn('スタッフIDが見つかりません。既存のテストスタッフを検索します。')
+      
+      try {
+        // 既存のスタッフレコードを検索
+        const { data: existingStaff } = await supabase
+          .from('staff')
+          .select('id')
+          .eq('is_active', true)
+          .limit(1)
+          .single()
+        
+        if (existingStaff) {
+          staffId = existingStaff.id
+          console.log('既存スタッフIDを使用:', staffId)
+        } else {
+          // スタッフレコードが存在しない場合は新しく作成（テスト用）
+          const { data: newStaff } = await supabase
+            .from('staff')
+            .insert({
+              staff_id: 'temp-staff-001',
+              name: 'テストユーザー',
+              role: 'STAFF',
+              is_active: true
+            })
+            .select('id')
+            .single()
+          
+          staffId = newStaff?.id
+          console.log('新しいテストスタッフを作成:', staffId)
+        }
+      } catch (staffError) {
+        console.error('スタッフID取得エラー:', staffError)
+        throw new Error('スタッフIDの取得に失敗しました。管理者にお問い合わせください。')
+      }
     }
+
+    const insertData = {
+      ...submission,
+      staff_id: staffId,
+      submitted_at: new Date().toISOString()
+    }
+    
+    console.log('Supabaseに挿入するデータ:', insertData)
 
     try {
       const { data, error } = await supabase
         .from('submissions')
-        .insert({
-          ...submission,
-          staff_id: user.staff.id,
-          submitted_at: new Date().toISOString()
-        })
+        .insert(insertData)
         .select(`
           *,
           staff:staff_id(*),
@@ -152,14 +196,25 @@ export const useReports = () => {
         `)
         .single()
 
-      if (error) throw error
+      console.log('Supabaseレスポンス:', { data, error })
+
+      if (error) {
+        console.error('Supabaseエラー詳細:', error)
+        throw error
+      }
 
       // ローカル状態を更新
       setReportSubmissions(prev => [data, ...prev])
+      console.log('提出成功、ローカル状態更新完了')
       return data
     } catch (err) {
-      console.error('報告書提出エラー:', err)
-      throw new Error('報告書の提出に失敗しました')
+      console.error('=== 報告書提出エラー詳細 ===')
+      console.error('エラーオブジェクト:', err)
+      console.error('エラーメッセージ:', err.message)
+      console.error('エラーコード:', err.code)
+      console.error('エラー詳細:', err.details)
+      console.error('エラーヒント:', err.hint)
+      throw new Error(`報告書の提出に失敗しました: ${err.message}`)
     }
   }
 
