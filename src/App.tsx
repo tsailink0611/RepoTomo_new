@@ -229,9 +229,10 @@ function TestPage() {
 function SimpleAdminDashboard() {
   const { user, logout } = useAuth()
   const { getSubmissionStats, getRecentSubmissions } = useReports()
-  const { sendQuestionResponse, sendSystemNotification } = useNotifications()
+  const { sendQuestionResponse, sendSystemNotification, notifications, getUnreadCount, markAsRead } = useNotifications()
   const { sendReminders, sendTestReminder } = useReminders()
   const [showNewReportModal, setShowNewReportModal] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
   
   const stats = getSubmissionStats()
   const recentSubmissions = getRecentSubmissions(5)
@@ -268,6 +269,51 @@ function SimpleAdminDashboard() {
               <span className="ml-4 text-gray-600">管理者ダッシュボード</span>
             </div>
             <div className="flex items-center space-x-4">
+              {/* 通知ベル */}
+              <div className="relative">
+                <button 
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="p-2 text-gray-600 hover:text-gray-800 relative"
+                >
+                  🔔
+                  {getUnreadCount() > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {getUnreadCount()}
+                    </span>
+                  )}
+                </button>
+                
+                {/* 通知ドロップダウン */}
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto">
+                    <div className="p-4 border-b">
+                      <h3 className="font-semibold text-gray-800">通知 ({getUnreadCount()}件未読)</h3>
+                    </div>
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500">
+                        通知はありません
+                      </div>
+                    ) : (
+                      <div className="max-h-80 overflow-y-auto">
+                        {notifications.slice(0, 10).map((notif) => (
+                          <div 
+                            key={notif.id}
+                            className={`p-3 border-b hover:bg-gray-50 cursor-pointer ${!notif.isRead ? 'bg-blue-50' : ''}`}
+                            onClick={() => markAsRead(notif.id)}
+                          >
+                            <div className="text-sm font-medium text-gray-800">{notif.title}</div>
+                            <div className="text-xs text-gray-600 mt-1">{notif.message}</div>
+                            <div className="text-xs text-gray-400 mt-1">
+                              {new Date(notif.createdAt).toLocaleString('ja-JP')}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              
               <span className="text-sm text-gray-600">
                 管理者: {user?.staff?.name || user?.email} さん
               </span>
@@ -700,6 +746,7 @@ function ReportSubmissionModal({
 }) {
   const { user } = useAuth()
   const { addReportSubmission, reportTemplates } = useReports()
+  const { addNotification } = useNotifications()
   const [selectedAction, setSelectedAction] = useState<string>('')
   const [documentUrl, setDocumentUrl] = useState('')
   const [message, setMessage] = useState('')
@@ -735,7 +782,21 @@ function ReportSubmissionModal({
         has_question: selectedAction === '質問あり'
       })
       
-      alert(`${reportName}の${selectedAction}を記録しました！`)
+      // 管理者に通知を送信
+      const staffName = user?.staff?.name || user?.email || '匿名ユーザー'
+      const notificationMessage = selectedAction === '質問あり' 
+        ? `${staffName}さんから「${reportName}」について質問があります。メッセージ: ${message}`
+        : `${staffName}さんから「${reportName}」が提出されました（${selectedAction}）`
+
+      addNotification({
+        title: selectedAction === '質問あり' ? '❓ 質問が届きました' : '📝 新しい報告書提出',
+        message: notificationMessage,
+        type: selectedAction === '質問あり' ? 'question' : 'reminder',
+        reportName,
+        targetUserName: staffName
+      })
+      
+      alert(`${reportName}の${selectedAction}を記録しました！管理者に通知も送信されました。`)
       console.log('提出記録:', submission)
       onClose()
     } catch (error) {
