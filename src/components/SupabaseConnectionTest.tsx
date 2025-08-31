@@ -28,7 +28,7 @@ export const SupabaseConnectionTest: React.FC = () => {
         setConnectionStatus('connected')
         
         // テーブル情報を取得
-        const tables = ['staff', 'report_templates', 'submissions', 'stores', 'sales_data']
+        const tables = ['staff', 'report_templates', 'submissions']
         const tableData = []
         
         for (const tableName of tables) {

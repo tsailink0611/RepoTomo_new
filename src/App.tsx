@@ -8,7 +8,6 @@ import { useNotifications } from './hooks/useNotifications'
 import { useReminders } from './hooks/useReminders'
 import { PWAInstallPrompt, IOSInstallGuide } from './components/PWAInstallPrompt'
 import { OfflineIndicator } from './components/OfflineIndicator'
-import { SalesAnalyticsDashboard } from './components/sales/SalesAnalyticsDashboard'
 import { SupabaseConnectionTest } from './components/SupabaseConnectionTest'
 
 function HomePage() {
@@ -1219,14 +1218,6 @@ function App() {
           <Route 
             path="/admin" 
             element={<AdminLoginPage />} 
-          />
-          <Route 
-            path="/admin/sales" 
-            element={
-              <ProtectedRoute requireRole="MANAGER">
-                <SalesAnalyticsDashboard />
-              </ProtectedRoute>
-            } 
           />
         </Routes>
       </div>
