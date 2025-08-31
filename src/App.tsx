@@ -913,7 +913,7 @@ function SimpleStaffDashboard() {
         {/* 報告書一覧 */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {reportTemplates
-            .filter(template => template.isActive)
+            .filter(template => template.is_active)
             .map((template) => (
               <div key={template.id} className={`rounded-lg shadow p-6 hover:shadow-xl transition ${
                 template.category === 'special' 
