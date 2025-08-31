@@ -1252,7 +1252,7 @@ function SimpleStaffPage() {
         {/* 報告書一覧（シンプル版） */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {reportTemplates
-            .filter(template => template.isActive)
+            .filter(template => template.is_active)
             .map((template) => (
               <div key={template.id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
                 <div className="text-center">
