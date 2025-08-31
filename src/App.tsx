@@ -699,7 +699,7 @@ function ReportSubmissionModal({
   onClose: () => void 
 }) {
   const { user } = useAuth()
-  const { addReportSubmission } = useReports()
+  const { addReportSubmission, reportTemplates } = useReports()
   const [selectedAction, setSelectedAction] = useState<string>('')
   const [documentUrl, setDocumentUrl] = useState('')
   const [message, setMessage] = useState('')
@@ -710,16 +710,29 @@ function ReportSubmissionModal({
     setShowDetails(true)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     try {
-      const submission = addReportSubmission({
-        reportId: reportName, // 実際のIDに変更する必要があります
-        reportName: reportName,
-        userId: user?.id || 'unknown',
-        userName: user?.staff?.name || user?.email || '匿名ユーザー',
-        status: selectedAction as '提出完了' | '質問あり' | '一部完了' | '延長希望',
-        documentUrl: documentUrl || undefined,
-        message: message || undefined
+      // 状態を英語のenumに変換
+      const statusMap: Record<string, 'completed' | 'has_question' | 'partial' | 'extension_requested'> = {
+        '提出完了': 'completed',
+        '質問あり': 'has_question', 
+        '一部完了': 'partial',
+        '延長希望': 'extension_requested'
+      }
+
+      // 報告書テンプレートをIDで検索（報告書名から）
+      const template = reportTemplates.find(t => t.name === reportName)
+      
+      if (!template) {
+        throw new Error('報告書テンプレートが見つかりません')
+      }
+
+      const submission = await addReportSubmission({
+        report_id: template.id,
+        status: statusMap[selectedAction],
+        document_url: documentUrl || undefined,
+        message: message || undefined,
+        has_question: selectedAction === '質問あり'
       })
       
       alert(`${reportName}の${selectedAction}を記録しました！`)
