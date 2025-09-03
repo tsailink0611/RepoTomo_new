@@ -289,12 +289,57 @@ export const useReports = () => {
     }
   }
 
+  // 報告書テンプレートを更新
+  const updateReportTemplate = async (templateId: string, updates: Partial<ReportTemplate>) => {
+    try {
+      const { data, error } = await supabase
+        .from('report_templates')
+        .update(updates)
+        .eq('id', templateId)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // ローカル状態を更新
+      setReportTemplates(prev => 
+        prev.map(template => 
+          template.id === templateId ? { ...template, ...data } : template
+        )
+      )
+      return data
+    } catch (err) {
+      console.error('報告書テンプレート更新エラー:', err)
+      throw new Error('報告書テンプレートの更新に失敗しました')
+    }
+  }
+
+  // 報告書テンプレートを削除
+  const deleteReportTemplate = async (templateId: string) => {
+    try {
+      const { error } = await supabase
+        .from('report_templates')
+        .delete()
+        .eq('id', templateId)
+
+      if (error) throw error
+
+      // ローカル状態を更新
+      setReportTemplates(prev => prev.filter(template => template.id !== templateId))
+    } catch (err) {
+      console.error('報告書テンプレート削除エラー:', err)
+      throw new Error('報告書テンプレートの削除に失敗しました')
+    }
+  }
+
   return {
     reportTemplates,
     reportSubmissions,
     isLoading,
     error,
     addReportTemplate,
+    updateReportTemplate,
+    deleteReportTemplate,
     addReportSubmission,
     updateReportSubmission,
     getSubmissionStats,
