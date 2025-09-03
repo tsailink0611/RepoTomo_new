@@ -7,6 +7,7 @@ import { useReports } from './hooks/useReports'
 import { useNotifications } from './hooks/useNotifications'
 import { useReminders } from './hooks/useReminders'
 import { useStaff } from './hooks/useStaff'
+import { useLINE } from './hooks/useLINE'
 import { PWAInstallPrompt, IOSInstallGuide } from './components/PWAInstallPrompt'
 import { OfflineIndicator } from './components/OfflineIndicator'
 import { SupabaseConnectionTest } from './components/SupabaseConnectionTest'
@@ -236,20 +237,22 @@ function SimpleAdminDashboard() {
   const [showTemplateManagement, setShowTemplateManagement] = useState(false)
   const [showStaffManagement, setShowStaffManagement] = useState(false)
   const [showStaffRoles, setShowStaffRoles] = useState(false)
+  const [showLINESettings, setShowLINESettings] = useState(false)
+  const [showSystemNotification, setShowSystemNotification] = useState(false)
   
   const stats = getSubmissionStats()
   const recentSubmissions = getRecentSubmissions(5)
 
-  // 自動リマインダー送信
-  const handleSendReminders = () => {
-    const count = sendReminders()
-    alert(`${count}件のリマインダーを送信しました！`)
-  }
-
-  // テストリマインダー送信
-  const handleTestReminder = () => {
-    sendTestReminder('日報')
-    alert('テストリマインダーを送信しました！')
+  // LINEリマインダー送信
+  const handleSendLINEReminders = async () => {
+    const { sendLINEReminder } = useLINE()
+    try {
+      const result = await sendLINEReminder('', 'daily') // 日報のリマインダーを送信
+      alert(`LINEリマインダーを送信しました！\n送信: ${result?.summary?.sent || 0}件\nスキップ: ${result?.summary?.skipped || 0}件`)
+    } catch (error) {
+      console.error('LINEリマインダー送信エラー:', error)
+      alert(`LINEリマインダーの送信に失敗しました: ${error.message}`)
+    }
   }
 
   // 質問回答
@@ -513,22 +516,19 @@ function SimpleAdminDashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold mb-4">📢 LINE通知管理</h3>
             <button 
-              onClick={handleSendReminders}
+              onClick={handleSendLINEReminders}
               className="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition mb-2"
             >
-              📅 自動リマインダー送信
+              📅 LINE リマインダー送信
             </button>
             <button 
-              onClick={handleTestReminder}
+              onClick={() => setShowLINESettings(true)}
               className="w-full bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded transition mb-2"
             >
-              📱 テストリマインダー
+              📱 LINE設定管理
             </button>
             <button 
-              onClick={() => {
-                sendSystemNotification('重要なお知らせ', '明日はシステムメンテナンスを行います。')
-                alert('システム通知を送信しました！')
-              }}
+              onClick={() => setShowSystemNotification(true)}
               className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition"
             >
               📢 システム通知
@@ -573,6 +573,16 @@ function SimpleAdminDashboard() {
       {/* スタッフ権限設定モーダル */}
       {showStaffRoles && (
         <StaffRolesModal onClose={() => setShowStaffRoles(false)} />
+      )}
+      
+      {/* LINE設定管理モーダル */}
+      {showLINESettings && (
+        <LINESettingsModal onClose={() => setShowLINESettings(false)} />
+      )}
+      
+      {/* システム通知モーダル */}
+      {showSystemNotification && (
+        <SystemNotificationModal onClose={() => setShowSystemNotification(false)} />
       )}
     </div>
   )
@@ -1311,6 +1321,296 @@ function StaffRolesModal({ onClose }: { onClose: () => void }) {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// LINE設定管理モーダル（管理者用）
+function LINESettingsModal({ onClose }: { onClose: () => void }) {
+  const { getLINEStats, getLINENotificationHistory } = useLINE()
+  const { staff } = useStaff()
+  const [stats, setStats] = useState<any>(null)
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  React.useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true)
+      try {
+        const [statsData, notificationsData] = await Promise.all([
+          getLINEStats(),
+          getLINENotificationHistory(20)
+        ])
+        setStats(statsData)
+        setNotifications(notificationsData)
+      } catch (error) {
+        console.error('データ読み込みエラー:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadData()
+  }, [])
+
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p>読み込み中...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-800">LINE設定管理</h2>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">
+              ×
+            </button>
+          </div>
+
+          {/* LINE統計情報 */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="bg-blue-50 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-blue-600">{stats?.totalStaff || 0}</div>
+              <p className="text-sm text-gray-600">総スタッフ数</p>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-green-600">{stats?.connectedStaff || 0}</div>
+              <p className="text-sm text-gray-600">LINE連携済み</p>
+            </div>
+            <div className="bg-orange-50 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-orange-600">{stats?.activeConnectedStaff || 0}</div>
+              <p className="text-sm text-gray-600">アクティブ連携</p>
+            </div>
+            <div className="bg-purple-50 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-purple-600">{stats?.todayNotifications || 0}</div>
+              <p className="text-sm text-gray-600">本日の通知数</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* スタッフLINE連携状況 */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4">スタッフLINE連携状況</h3>
+              <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+                {staff.map((staffMember) => (
+                  <div key={staffMember.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
+                    <div>
+                      <div className="font-medium">{staffMember.name}</div>
+                      <div className="text-sm text-gray-600">{staffMember.email}</div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className={`px-2 py-1 rounded text-xs ${
+                        staffMember.is_active 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {staffMember.is_active ? 'アクティブ' : '非アクティブ'}
+                      </span>
+                      <span className={`px-2 py-1 rounded text-xs ${
+                        staffMember.line_user_id 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {staffMember.line_user_id ? 'LINE連携済み' : 'LINE未連携'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 最近のLINE通知履歴 */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4">最近のLINE通知履歴</h3>
+              <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+                {notifications.length > 0 ? (
+                  notifications.map((notification) => (
+                    <div key={notification.id} className="py-2 border-b last:border-b-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            notification.type === 'reminder' 
+                              ? 'bg-orange-100 text-orange-800'
+                              : notification.type === 'response'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-purple-100 text-purple-800'
+                          }`}>
+                            {notification.type === 'reminder' && 'リマインダー'}
+                            {notification.type === 'response' && '回答'}
+                            {notification.type === 'system' && 'システム'}
+                          </span>
+                          <span className="text-sm font-medium">{notification.staff?.name}</span>
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {new Date(notification.sent_at).toLocaleDateString('ja-JP')}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-700 mt-1">{notification.title}</div>
+                      <div className="text-xs text-gray-500 mt-1 line-clamp-2">{notification.message}</div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-center py-8">LINE通知履歴がありません</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* LINE Bot設定情報 */}
+          <div className="mt-8 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h4 className="font-semibold text-yellow-800 mb-2">📱 LINE Bot設定について</h4>
+            <div className="text-sm text-yellow-700 space-y-2">
+              <p>• LINE Bot WebhookのURL: <code className="bg-yellow-100 px-1 rounded">{window.location.origin}/functions/v1/line-webhook</code></p>
+              <p>• スタッフはLINE Botを友達追加後、スタッフIDを送信して連携を完了します</p>
+              <p>• 連携済みスタッフには自動でリマインダーと通知が送信されます</p>
+              <p>• 環境変数でLINE Channel Access TokenとChannel Secretの設定が必要です</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// システム通知送信モーダル（管理者用）
+function SystemNotificationModal({ onClose }: { onClose: () => void }) {
+  const { sendSystemNotificationToLINE } = useLINE()
+  const [title, setTitle] = useState('')
+  const [message, setMessage] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleSend = async () => {
+    if (!title.trim() || !message.trim()) {
+      alert('タイトルとメッセージを入力してください')
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const result = await sendSystemNotificationToLINE(title, message)
+      alert(`システム通知を送信しました！\n送信成功: ${result.sent}件\n送信失敗: ${result.failed}件`)
+      setTitle('')
+      setMessage('')
+      onClose()
+    } catch (error) {
+      console.error('システム通知送信エラー:', error)
+      alert(`システム通知の送信に失敗しました: ${error.message}`)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const presetMessages = [
+    {
+      title: '重要なお知らせ',
+      message: 'システムメンテナンスのため、明日18:00-20:00の間、一時的にサービスを停止いたします。ご理解のほどよろしくお願いいたします。'
+    },
+    {
+      title: '報告書提出のお願い',
+      message: '月末の報告書提出期限が近づいております。まだ提出がお済みでない方は、お早めにご提出をお願いいたします。'
+    },
+    {
+      title: '新機能のお知らせ',
+      message: 'RepoTomoに新しい機能が追加されました。詳細は管理者までお問い合わせください。'
+    }
+  ]
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg max-w-2xl w-full">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-800">システム通知送信</h2>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">
+              ×
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+              <p className="text-sm text-blue-800">
+                📢 この通知は、LINE連携済みのすべてのアクティブなスタッフに送信されます。
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                タイトル <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="例: 重要なお知らせ"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={isLoading}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                メッセージ <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={4}
+                placeholder="通知する内容を入力してください..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={isLoading}
+              />
+            </div>
+
+            {/* プリセットメッセージ */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                プリセットメッセージ
+              </label>
+              <div className="grid gap-2">
+                {presetMessages.map((preset, index) => (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      setTitle(preset.title)
+                      setMessage(preset.message)
+                    }}
+                    className="text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+                    disabled={isLoading}
+                  >
+                    <div className="font-medium text-sm">{preset.title}</div>
+                    <div className="text-xs text-gray-600 mt-1 line-clamp-2">{preset.message}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex space-x-3 pt-4">
+              <button
+                onClick={onClose}
+                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition"
+                disabled={isLoading}
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleSend}
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition disabled:opacity-50"
+                disabled={isLoading}
+              >
+                {isLoading ? '送信中...' : '通知を送信'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
