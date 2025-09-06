@@ -42,6 +42,9 @@
       "Bash(supabase status:*)",
       "Bash(npx supabase login)",
       "Read(c:\\Users\\tsail\\Desktop\\スクリーンショット/**)",
+      "Read(c:\\Users\\tsail\\Desktop\\スクリーンショット/**)",
+      "Bash(npx supabase:*)",
+      "Read(c:\\Users\\tsail\\Desktop\\スクリーンショット/**)",
       "Read(c:\\Users\\tsail\\Desktop\\スクリーンショット/**)"
     ],
     "deny": [],
