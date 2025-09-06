@@ -4,7 +4,7 @@ import { Button } from '../components/common/Button'
 import { Card } from '../components/common/Card'
 
 export const Login = () => {
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const { login, loginAsStaff } = useAuth()
@@ -13,9 +13,10 @@ export const Login = () => {
     e.preventDefault()
     setIsLoading(true)
     try {
-      await login(email, password)
+      await login(username, password)
     } catch (error) {
       console.error('ログインエラー:', error)
+      alert('ログインに失敗しました: ' + (error as Error).message)
     } finally {
       setIsLoading(false)
     }
@@ -47,16 +48,16 @@ export const Login = () => {
         <Card>
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                メールアドレス
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                ユーザー名
               </label>
               <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                placeholder="example@company.com"
+                placeholder="admin"
                 required
               />
             </div>

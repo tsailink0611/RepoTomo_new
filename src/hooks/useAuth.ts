@@ -25,16 +25,68 @@ export const useAuth = () => {
     // 認証状態の初期化
     const initializeAuth = async () => {
       try {
+        // 管理者トークンの確認
+        const adminToken = localStorage.getItem('repotomo_admin_token')
+        if (adminToken) {
+          try {
+            // トークンの検証
+            const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auth/verify`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+              },
+              body: JSON.stringify({ token: adminToken })
+            })
+
+            const result = await response.json()
+
+            if (result.success) {
+              // 有効な管理者トークン
+              const adminUser: AppUser = {
+                id: result.user.id,
+                email: `${result.user.username}@repotomo.admin`,
+                aud: 'authenticated',
+                created_at: new Date().toISOString(),
+                app_metadata: { role: 'admin' },
+                user_metadata: {
+                  username: result.user.username,
+                  is_admin: true
+                }
+              } as AppUser
+
+              localStorage.setItem('repotomo_user', JSON.stringify(adminUser))
+              setAuthState({
+                user: adminUser,
+                isLoading: false,
+                isAuthenticated: true
+              })
+              return
+            } else {
+              // 無効なトークン - 削除
+              localStorage.removeItem('repotomo_admin_token')
+              localStorage.removeItem('repotomo_user')
+            }
+          } catch (error) {
+            console.error('トークン検証エラー:', error)
+            localStorage.removeItem('repotomo_admin_token')
+            localStorage.removeItem('repotomo_user')
+          }
+        }
+
         // 開発モード：ローカルストレージからモックユーザーを復元
         const savedUser = localStorage.getItem('repotomo_user')
         if (savedUser) {
           const user = JSON.parse(savedUser)
-          setAuthState({
-            user,
-            isLoading: false,
-            isAuthenticated: true
-          })
-          return
+          // 管理者でない場合のみ復元
+          if (!user.user_metadata?.is_admin) {
+            setAuthState({
+              user,
+              isLoading: false,
+              isAuthenticated: true
+            })
+            return
+          }
         }
 
         // 未認証状態
@@ -140,8 +192,58 @@ export const useAuth = () => {
     }
   }
 
-  // 本番用のログイン（Supabase認証）
-  const login = async (email: string, password: string) => {
+  // 管理者ログイン（新認証API使用）
+  const login = async (username: string, password: string) => {
+    setAuthState(prev => ({ ...prev, isLoading: true }))
+    
+    try {
+      // 新しい認証APIを使用
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({ username, password })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'ログインに失敗しました')
+      }
+
+      // トークンをローカルストレージに保存
+      localStorage.setItem('repotomo_admin_token', result.token)
+
+      // 管理者ユーザーオブジェクトを作成
+      const adminUser: AppUser = {
+        id: result.user.id,
+        email: `${result.user.username}@repotomo.admin`,
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+        app_metadata: { role: 'admin' },
+        user_metadata: {
+          username: result.user.username,
+          is_admin: true
+        }
+      } as AppUser
+
+      localStorage.setItem('repotomo_user', JSON.stringify(adminUser))
+      setAuthState({
+        user: adminUser,
+        isLoading: false,
+        isAuthenticated: true
+      })
+    } catch (error) {
+      console.error('ログインエラー:', error)
+      setAuthState(prev => ({ ...prev, isLoading: false }))
+      throw error
+    }
+  }
+
+  // 従来のSupabase認証も保持
+  const loginWithSupabase = async (email: string, password: string) => {
     setAuthState(prev => ({ ...prev, isLoading: true }))
     
     try {
@@ -154,7 +256,7 @@ export const useAuth = () => {
 
       // 成功時は onAuthStateChange で処理される
     } catch (error) {
-      console.error('ログインエラー:', error)
+      console.error('Supabaseログインエラー:', error)
       setAuthState(prev => ({ ...prev, isLoading: false }))
       throw error
     }
@@ -184,6 +286,25 @@ export const useAuth = () => {
   // ログアウト
   const logout = async () => {
     try {
+      const adminToken = localStorage.getItem('repotomo_admin_token')
+      
+      // 管理者トークンがある場合は、サーバー側のセッションも削除
+      if (adminToken) {
+        try {
+          await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auth/logout`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({ token: adminToken })
+          })
+        } catch (error) {
+          console.error('サーバー側ログアウトエラー:', error)
+        }
+        localStorage.removeItem('repotomo_admin_token')
+      }
+      
       localStorage.removeItem('repotomo_user')
       
       // Supabaseからもログアウト
@@ -238,6 +359,7 @@ export const useAuth = () => {
     isLoading: authState.isLoading,
     isAuthenticated: authState.isAuthenticated,
     login,
+    loginWithSupabase,
     loginAsStaff,
     signUp,
     logout,
