@@ -518,21 +518,50 @@ async function handleEvent(event: LineWebhookEvent) {
 }
 
 serve(async (req) => {
+  // CORS対応
+  if (req.method === 'OPTIONS') {
+    return new Response('OK', {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    })
+  }
+
   try {
     const body = await req.json()
     
     // Webhook検証（LINE Developer Consoleからの確認）
     if (body.events && body.events.length === 0) {
-      return new Response('OK', { status: 200 })
+      return new Response('OK', { 
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        }
+      })
     }
 
     // 各イベントを処理
     const events = body.events || []
     await Promise.all(events.map(handleEvent))
 
-    return new Response('OK', { status: 200 })
+    return new Response('OK', { 
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      }
+    })
   } catch (error) {
     console.error('Webhook error:', error)
-    return new Response('Internal Server Error', { status: 500 })
+    return new Response('Internal Server Error', { 
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      }
+    })
   }
 })

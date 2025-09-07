@@ -232,6 +232,7 @@ function SimpleAdminDashboard() {
   const { getSubmissionStats, getRecentSubmissions, reportTemplates } = useReports()
   const { sendQuestionResponse, sendSystemNotification, notifications, getUnreadCount, markAsRead } = useNotifications()
   const { sendReminders, sendTestReminder } = useReminders()
+  const { sendLINEReminder } = useLINE() // hookをトップレベルで呼び出し
   const [showNewReportModal, setShowNewReportModal] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showTemplateManagement, setShowTemplateManagement] = useState(false)
@@ -245,13 +246,12 @@ function SimpleAdminDashboard() {
 
   // LINEリマインダー送信
   const handleSendLINEReminders = async () => {
-    const { sendLINEReminder } = useLINE()
     try {
       const result = await sendLINEReminder('', 'daily') // 日報のリマインダーを送信
       alert(`LINEリマインダーを送信しました！\n送信: ${result?.summary?.sent || 0}件\nスキップ: ${result?.summary?.skipped || 0}件`)
     } catch (error) {
       console.error('LINEリマインダー送信エラー:', error)
-      alert(`LINEリマインダーの送信に失敗しました: ${error.message}`)
+      alert(`LINEリマインダーの送信に失敗しました: ${error?.message || 'Unknown error'}`)
     }
   }
 
