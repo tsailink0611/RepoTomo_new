@@ -840,7 +840,7 @@ function StaffManagementModal({ onClose }: { onClose: () => void }) {
 
   const stats = getStaffStats()
 
-  const resetForm = () => {
+  const resetFormData = () => {
     setFormData({
       staff_id: '',
       name: '',
@@ -852,12 +852,16 @@ function StaffManagementModal({ onClose }: { onClose: () => void }) {
       is_active: true
     })
     setEditingStaff(null)
+  }
+
+  const resetForm = () => {
+    resetFormData()
     setShowAddForm(false)
   }
 
   const handleAdd = () => {
+    resetFormData()
     setShowAddForm(true)
-    resetForm()
   }
 
   const handleEdit = (staffMember: any) => {

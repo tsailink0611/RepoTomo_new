@@ -25,8 +25,9 @@ export const useLINE = () => {
     setError(null)
 
     try {
-      const { data: functionData, error: functionError } = await supabase.functions.invoke('send-reminder', {
+      const { data: functionData, error: functionError } = await supabase.functions.invoke('line-webhook', {
         body: {
+          action: 'send_reminder',
           reportId,
           reportType,
           targetStaffId
@@ -79,12 +80,9 @@ export const useLINE = () => {
               'Authorization': `Bearer ${supabase.supabaseKey}`,
             },
             body: JSON.stringify({
-              events: [{
-                type: 'system_notification',
-                userId: staffMember.line_user_id,
-                title,
-                message
-              }]
+              action: 'send_system_notification',
+              title,
+              message
             })
           })
 
@@ -149,12 +147,10 @@ export const useLINE = () => {
           'Authorization': `Bearer ${supabase.supabaseKey}`,
         },
         body: JSON.stringify({
-          events: [{
-            type: 'question_response',
-            userId: staff.line_user_id,
-            reportName,
-            response
-          }]
+          action: 'send_question_response',
+          targetUserId: staff.line_user_id,
+          reportName,
+          response
         })
       })
 

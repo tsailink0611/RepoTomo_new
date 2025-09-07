@@ -45,7 +45,9 @@
       "Read(c:\\Users\\tsail\\Desktop\\スクリーンショット/**)",
       "Bash(npx supabase:*)",
       "Read(c:\\Users\\tsail\\Desktop\\スクリーンショット/**)",
-      "Read(c:\\Users\\tsail\\Desktop\\スクリーンショット/**)"
+      "Read(c:\\Users\\tsail\\Desktop\\スクリーンショット/**)",
+      "Read(//c/Users/tsail/Desktop/スクリーンショット/**)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []

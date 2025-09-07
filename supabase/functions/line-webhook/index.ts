@@ -517,6 +517,83 @@ async function handleEvent(event: LineWebhookEvent) {
   }
 }
 
+// 管理者からの送信リクエスト処理
+async function handleAdminNotification(body: any) {
+  const { action, title, message, targetUserId, reportId } = body
+
+  if (action === 'send_system_notification') {
+    // システム通知送信
+    const { data: staff } = await supabase
+      .from('staff')
+      .select('line_user_id, name')
+      .eq('is_active', true)
+      .not('line_user_id', 'is', null)
+
+    const results = { sent: 0, failed: 0, details: [] }
+    
+    for (const staffMember of staff || []) {
+      try {
+        await pushMessage(staffMember.line_user_id, [{
+          type: 'text',
+          text: `📢 ${title}\n\n${message}`
+        }])
+        results.sent++
+        results.details.push({ name: staffMember.name, status: 'success' })
+      } catch (error) {
+        results.failed++
+        results.details.push({ name: staffMember.name, status: 'failed', error: error.message })
+      }
+    }
+
+    return results
+  }
+
+  if (action === 'send_reminder') {
+    // リマインダー送信
+    const { data: staff } = await supabase
+      .from('staff')
+      .select('line_user_id, name')
+      .eq('is_active', true)
+      .not('line_user_id', 'is', null)
+
+    const results = { summary: { sent: 0, skipped: 0 }, details: [] }
+    
+    for (const staffMember of staff || []) {
+      try {
+        await pushMessage(staffMember.line_user_id, [{
+          type: 'text',
+          text: `⏰ リマインダー\n\n報告書の提出をお忘れなく！\n\n期限内での提出にご協力お願いします。`
+        }])
+        results.summary.sent++
+        results.details.push({ name: staffMember.name, status: 'sent' })
+      } catch (error) {
+        results.summary.skipped++
+        results.details.push({ name: staffMember.name, status: 'skipped', error: error.message })
+      }
+    }
+
+    return results
+  }
+
+  if (action === 'send_question_response') {
+    // 質問回答送信
+    const { targetUserId, reportName, response } = body
+    
+    try {
+      await pushMessage(targetUserId, [{
+        type: 'text',
+        text: `💬 ${reportName}への回答\n\n${response}`
+      }])
+      
+      return { success: true, message: '質問回答を送信しました' }
+    } catch (error) {
+      throw new Error(`質問回答の送信に失敗しました: ${error.message}`)
+    }
+  }
+
+  throw new Error('Unknown action')
+}
+
 serve(async (req) => {
   // CORS対応
   if (req.method === 'OPTIONS') {
@@ -532,6 +609,19 @@ serve(async (req) => {
   try {
     const body = await req.json()
     
+    // 管理者からの送信リクエスト判定
+    if (body.action) {
+      const result = await handleAdminNotification(body)
+      return new Response(JSON.stringify(result), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        }
+      })
+    }
+
+    // 通常のLINE Webhook処理
     // Webhook検証（LINE Developer Consoleからの確認）
     if (body.events && body.events.length === 0) {
       return new Response('OK', { 
@@ -555,8 +645,11 @@ serve(async (req) => {
       }
     })
   } catch (error) {
-    console.error('Webhook error:', error)
-    return new Response('Internal Server Error', { 
+    console.error('LINE Function error:', error)
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      success: false 
+    }), { 
       status: 500,
       headers: {
         'Content-Type': 'application/json',
