@@ -271,8 +271,8 @@ function SimpleAdminDashboard() {
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center">
-              <Link to="/" className="text-2xl font-bold text-purple-600 hover:text-purple-700">🎉 RepoTomo</Link>
-              <span className="ml-4 text-gray-600">管理者ダッシュボード</span>
+              <Link to="/" className="text-xl md:text-2xl font-bold text-purple-600 hover:text-purple-700">🎉 RepoTomo</Link>
+              <span className="ml-2 md:ml-4 text-gray-600 text-sm md:text-base">管理者ダッシュボード</span>
             </div>
             <div className="flex items-center space-x-4">
               {/* 通知ベル */}
@@ -955,7 +955,7 @@ function StaffManagementModal({ onClose }: { onClose: () => void }) {
           </div>
 
           {/* 統計情報 */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
             <div className="bg-blue-50 p-4 rounded-lg text-center">
               <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
               <p className="text-sm text-gray-600">総スタッフ数</p>
@@ -1107,9 +1107,9 @@ function StaffManagementModal({ onClose }: { onClose: () => void }) {
                 <h3 className="text-lg font-semibold">スタッフ一覧</h3>
                 <button
                   onClick={handleAdd}
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition"
+                  className="bg-green-500 hover:bg-green-600 text-white px-3 md:px-4 py-2 rounded-lg transition text-sm md:text-base"
                 >
-                  + 新しいスタッフを追加
+                  + 新規追加
                 </button>
               </div>
 
