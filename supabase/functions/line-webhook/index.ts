@@ -594,6 +594,27 @@ async function handleAdminNotification(body: any) {
   throw new Error('Unknown action')
 }
 
+// LINE署名検証
+async function verifySignature(body: string, signature: string): Promise<boolean> {
+  const secretKey = LINE_CHANNEL_SECRET
+  const encoder = new TextEncoder()
+  const keyData = encoder.encode(secretKey)
+  const bodyData = encoder.encode(body)
+  
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  
+  const signatureBuffer = await crypto.subtle.sign('HMAC', cryptoKey, bodyData)
+  const expectedSignature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
+  
+  return signature === expectedSignature
+}
+
 serve(async (req) => {
   // CORS対応
   if (req.method === 'OPTIONS') {
@@ -601,16 +622,32 @@ serve(async (req) => {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Line-Signature',
       }
     })
   }
 
+  // Edge Function認証をスキップ（Webhook用）
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Content-Type': 'application/json',
+  }
+
   try {
-    const body = await req.json()
+    const requestText = await req.text()
+    const body = JSON.parse(requestText)
     
-    // 管理者からの送信リクエスト判定
-    if (body.action) {
+    // LINE Platform からのリクエストをチェック
+    const signature = req.headers.get('X-Line-Signature')
+    const isLineRequest = signature !== null
+    
+    console.log('Request type:', isLineRequest ? 'LINE Platform' : 'Admin Dashboard')
+    console.log('Signature present:', !!signature)
+    console.log('Body:', JSON.stringify(body))
+    
+    // 管理者からの送信リクエスト（署名なし）
+    if (!isLineRequest && body.action) {
+      console.log('Processing admin notification request')
       const result = await handleAdminNotification(body)
       return new Response(JSON.stringify(result), {
         status: 200,
@@ -619,6 +656,24 @@ serve(async (req) => {
           'Access-Control-Allow-Origin': '*',
         }
       })
+    }
+
+    // LINE Platform からのWebhookリクエストの署名検証
+    if (isLineRequest && signature) {
+      console.log('Verifying LINE webhook signature')
+      const isValidSignature = await verifySignature(requestText, signature)
+      
+      if (!isValidSignature) {
+        console.error('Invalid LINE signature')
+        return new Response('Invalid signature', { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          }
+        })
+      }
+      console.log('LINE signature verification passed')
     }
 
     // 通常のLINE Webhook処理
