@@ -25,12 +25,21 @@ export const Login = () => {
     setIsLoading(true)
     try {
       if (role === 'staff') {
-        await loginAsStaff('1')
+        const staffId = prompt('スタッフIDを入力してください：')
+        if (staffId) {
+          await loginAsStaff(staffId)
+        }
       } else {
-        await loginAsStaff('2')
+        const password = prompt('管理者パスワードを入力してください：')
+        if (password === '123456') {
+          await loginAsStaff('2')  // 管理者アカウント
+        } else if (password !== null) {
+          alert('パスワードが間違っています')
+        }
       }
     } catch (error) {
-      console.error('デモログインエラー:', error)
+      console.error('ログインエラー:', error)
+      alert('ログインに失敗しました。正しい認証情報を入力してください。')
     } finally {
       setIsLoading(false)
     }

@@ -176,7 +176,16 @@ function LoginPage() {
         </p>
         <div className="space-y-3">
           <button 
-            onClick={() => loginAsStaff('1')}
+            onClick={() => {
+              const staffId = prompt('スタッフIDを入力してください：')
+              if (staffId) {
+                // スタッフIDでログイン試行
+                loginAsStaff(staffId).catch(error => {
+                  alert('ログインに失敗しました。正しいスタッフIDを入力してください。')
+                  console.error('Staff login error:', error)
+                })
+              }
+            }}
             className="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition"
           >
             スタッフとしてログイン
@@ -1532,8 +1541,8 @@ function SystemNotificationModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-2xl w-full">
-        <div className="p-6">
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] flex flex-col">
+        <div className="p-6 flex-1 overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-800">システム通知送信</h2>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">
@@ -1599,22 +1608,26 @@ function SystemNotificationModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
 
-            <div className="flex space-x-3 pt-4">
-              <button
-                onClick={onClose}
-                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition"
-                disabled={isLoading}
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={handleSend}
-                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition disabled:opacity-50"
-                disabled={isLoading}
-              >
-                {isLoading ? '送信中...' : '通知を送信'}
-              </button>
-            </div>
+          </div>
+        </div>
+        
+        {/* 固定ボタン部分 */}
+        <div className="p-6 border-t bg-gray-50 rounded-b-lg">
+          <div className="flex space-x-3">
+            <button
+              onClick={onClose}
+              className="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition"
+              disabled={isLoading}
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={handleSend}
+              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition disabled:opacity-50"
+              disabled={isLoading}
+            >
+              {isLoading ? '送信中...' : '通知を送信'}
+            </button>
           </div>
         </div>
       </div>
@@ -1840,10 +1853,110 @@ function ReportSubmissionModal({
   const [documentUrl, setDocumentUrl] = useState('')
   const [message, setMessage] = useState('')
   const [showDetails, setShowDetails] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const [isUploading, setIsUploading] = useState(false)
 
   const handleActionSelect = (action: string) => {
     setSelectedAction(action)
     setShowDetails(true)
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    setUploadedFiles(files)
+    console.log('選択されたファイル:', files.map(f => f.name))
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    const files = Array.from(e.dataTransfer.files)
+    setUploadedFiles(files)
+    console.log('ドロップされたファイル:', files.map(f => f.name))
+  }
+
+  const uploadFilesToSupabase = async (files: File[]): Promise<string[]> => {
+    if (files.length === 0) return []
+    
+    setIsUploading(true)
+    const uploadedUrls: string[] = []
+    
+    try {
+      console.log('=== ファイルアップロード開始 ===')
+      console.log('ユーザーID:', user?.id)
+      console.log('ファイル数:', files.length)
+      
+      for (const file of files) {
+        console.log(`アップロード中: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`)
+        
+        // ファイルサイズチェック (10MB制限)
+        if (file.size > 10 * 1024 * 1024) {
+          throw new Error(`ファイル "${file.name}" が大きすぎます (10MB以下にしてください)`)
+        }
+        
+        // ファイル名をユニークにする
+        const timestamp = Date.now()
+        const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+        const fileName = `${timestamp}_${cleanFileName}`
+        const filePath = `submissions/${user?.id}/${fileName}`
+        
+        console.log('アップロード先パス:', filePath)
+        
+        // Supabase Storageにアップロード
+        const { data, error } = await supabase.storage
+          .from('report-files')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          })
+        
+        if (error) {
+          console.error('Supabaseアップロードエラー:', error)
+          console.error('エラー詳細:', {
+            message: error.message,
+            statusCode: error.statusCode,
+            error: error.error
+          })
+          throw new Error(`アップロード失敗: ${error.message}`)
+        }
+        
+        console.log('Supabaseアップロード成功:', data)
+        
+        // 公開URLを取得
+        const { data: publicUrl } = supabase.storage
+          .from('report-files')
+          .getPublicUrl(filePath)
+        
+        uploadedUrls.push(publicUrl.publicUrl)
+        console.log('公開URL取得成功:', publicUrl.publicUrl)
+      }
+      
+      console.log('=== 全ファイルアップロード完了 ===')
+      return uploadedUrls
+    } catch (error) {
+      console.error('=== ファイルアップロード失敗 ===')
+      console.error('エラー詳細:', error)
+      alert(`ファイルのアップロードに失敗しました: ${error.message}`)
+      return []
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   const handleSubmit = async () => {
@@ -1853,6 +1966,14 @@ function ReportSubmissionModal({
       console.log('selectedAction:', selectedAction)
       console.log('user:', user)
       console.log('reportTemplates:', reportTemplates)
+      
+      // ファイルをアップロード
+      let fileUrls: string[] = []
+      if (uploadedFiles.length > 0) {
+        console.log('ファイルアップロード開始...')
+        fileUrls = await uploadFilesToSupabase(uploadedFiles)
+        console.log('アップロードされたファイルURL:', fileUrls)
+      }
       
       // 状態を英語のenumに変換
       const statusMap: Record<string, 'completed' | 'has_question' | 'partial' | 'extension_requested'> = {
@@ -1872,12 +1993,19 @@ function ReportSubmissionModal({
         throw new Error('報告書テンプレートが見つかりません')
       }
 
+      // 添付ファイルのURLを含める
+      const allDocumentUrls = [
+        ...(documentUrl ? [documentUrl] : []),
+        ...fileUrls
+      ].filter(Boolean)
+
       const submissionData = {
         report_id: template.id,
         status: statusMap[selectedAction],
-        document_url: documentUrl || undefined,
+        document_url: allDocumentUrls.length > 0 ? allDocumentUrls.join(',') : undefined,
         message: message || undefined,
-        has_question: selectedAction === '質問あり'
+        has_question: selectedAction === '質問あり',
+        file_urls: fileUrls.length > 0 ? fileUrls : undefined
       }
       console.log('提出データ:', submissionData)
 
@@ -1998,15 +2126,45 @@ function ReportSubmissionModal({
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   添付ファイル（任意）
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                  <input type="file" className="hidden" id="file-upload" multiple />
+                <div 
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-orange-400 transition"
+                  onDragOver={handleDragOver}
+                  onDragEnter={handleDragEnter}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    id="file-upload" 
+                    multiple 
+                    onChange={handleFileSelect}
+                    disabled={isUploading}
+                  />
                   <label htmlFor="file-upload" className="cursor-pointer">
                     <div className="text-gray-500">
                       <div className="text-3xl mb-2">📎</div>
                       <p>クリックしてファイルを選択</p>
-                      <p className="text-xs mt-1">PDF, Excel, Word, 画像など</p>
+                      <p className="text-xs mt-1">または、ここにファイルをドラッグ&ドロップ</p>
+                      <p className="text-xs">PDF, Excel, Word, 画像など</p>
                     </div>
                   </label>
+                  
+                  {/* 選択されたファイルの表示 */}
+                  {uploadedFiles.length > 0 && (
+                    <div className="mt-3 text-left">
+                      <p className="text-sm font-medium text-gray-700 mb-1">選択されたファイル:</p>
+                      <ul className="text-sm text-gray-600">
+                        {uploadedFiles.map((file, index) => (
+                          <li key={index} className="flex items-center space-x-2">
+                            <span>📄</span>
+                            <span>{file.name}</span>
+                            <span className="text-xs text-gray-400">({(file.size / 1024).toFixed(1)} KB)</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -2019,9 +2177,10 @@ function ReportSubmissionModal({
                 </button>
                 <button
                   onClick={handleSubmit}
-                  className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition"
+                  className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition disabled:opacity-50"
+                  disabled={isUploading}
                 >
-                  送信
+                  {isUploading ? 'アップロード中...' : '送信'}
                 </button>
               </div>
             </div>
@@ -2260,7 +2419,6 @@ function App() {
         
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
           <Route path="/test" element={<TestPage />} />
           <Route 
             path="/dashboard" 
@@ -2371,7 +2529,55 @@ function AdminLoginPage() {
 // シンプルなスタッフ専用ページ
 function SimpleStaffPage() {
   const { reportTemplates, isLoading } = useReports()
+  const { isAuthenticated, loginAsStaff } = useAuth()
   const [selectedReport, setSelectedReport] = useState<string | null>(null)
+  const [showAuthModal, setShowAuthModal] = useState(!isAuthenticated)
+
+  // 認証処理
+  const handleStaffAuth = async () => {
+    const staffId = prompt('スタッフIDを入力してください：')
+    if (staffId) {
+      try {
+        await loginAsStaff(staffId)
+        setShowAuthModal(false)
+      } catch (error) {
+        alert('ログインに失敗しました。正しいスタッフIDを入力してください。')
+        console.error('Staff login error:', error)
+      }
+    }
+  }
+
+  // 認証モーダル
+  if (showAuthModal) {
+    return (
+      <div className="min-h-screen bg-orange-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+          <div className="text-6xl mb-4">👥</div>
+          <h2 className="text-2xl font-bold text-orange-600 mb-4">
+            スタッフ認証
+          </h2>
+          <p className="text-gray-600 mb-6">
+            報告書提出には認証が必要です。<br/>
+            スタッフIDを入力してください。
+          </p>
+          <div className="space-y-3">
+            <button 
+              onClick={handleStaffAuth}
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg transition font-semibold"
+            >
+              スタッフIDで認証
+            </button>
+            <Link 
+              to="/" 
+              className="block w-full bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition font-semibold"
+            >
+              ホームに戻る
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (
