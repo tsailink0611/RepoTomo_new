@@ -13,6 +13,7 @@ import { PWAInstallPrompt, IOSInstallGuide } from './components/PWAInstallPrompt
 import { OfflineIndicator } from './components/OfflineIndicator'
 import { SupabaseConnectionTest } from './components/SupabaseConnectionTest'
 import { AdminLoginPage } from './components/pages/AdminLoginPage'
+import { DashboardPage } from './components/pages/DashboardPage'
 
 function HomePage() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
@@ -2362,6 +2363,8 @@ function SimpleStaffDashboard() {
   )
 }
 
+// DashboardPage - EXTRACTED to src/components/pages/DashboardPage.tsx
+/*
 function DashboardPage() {
   const { user } = useAuth()
   const isManager = user?.staff?.role === 'MANAGER' || user?.staff?.role === 'ADMIN'
@@ -2408,6 +2411,7 @@ function DashboardPage() {
     </div>
   )
 }
+*/
 
 function App() {
   return (
