@@ -14,6 +14,7 @@ import { OfflineIndicator } from './components/OfflineIndicator'
 import { SupabaseConnectionTest } from './components/SupabaseConnectionTest'
 import { AdminLoginPage } from './components/pages/AdminLoginPage'
 import { DashboardPage } from './components/pages/DashboardPage'
+import { SystemNotificationModal } from './components/modals/SystemNotificationModal'
 
 function HomePage() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
@@ -1502,7 +1503,8 @@ function LINESettingsModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-// システム通知送信モーダル（管理者用）
+// システム通知送信モーダル（管理者用） - EXTRACTED to src/components/modals/SystemNotificationModal.tsx
+/*
 function SystemNotificationModal({ onClose }: { onClose: () => void }) {
   const { sendSystemNotificationToLINE } = useLINE()
   const [title, setTitle] = useState('')
@@ -1591,7 +1593,6 @@ function SystemNotificationModal({ onClose }: { onClose: () => void }) {
               />
             </div>
 
-            {/* プリセットメッセージ */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 プリセットメッセージ
@@ -1617,7 +1618,6 @@ function SystemNotificationModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         
-        {/* 固定ボタン部分 */}
         <div className="p-6 border-t bg-gray-50 rounded-b-lg">
           <div className="flex space-x-3">
             <button
@@ -1640,6 +1640,7 @@ function SystemNotificationModal({ onClose }: { onClose: () => void }) {
     </div>
   )
 }
+*/
 
 // 新規報告書作成モーダル（管理者用）
 function NewReportModal({ onClose }: { onClose: () => void }) {
