@@ -47,7 +47,10 @@
       "Read(c:\\Users\\tsail\\Desktop\\スクリーンショット/**)",
       "Read(c:\\Users\\tsail\\Desktop\\スクリーンショット/**)",
       "Read(//c/Users/tsail/Desktop/スクリーンショット/**)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run build:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
