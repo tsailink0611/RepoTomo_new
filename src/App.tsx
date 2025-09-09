@@ -12,6 +12,7 @@ import { supabase } from './lib/supabase'
 import { PWAInstallPrompt, IOSInstallGuide } from './components/PWAInstallPrompt'
 import { OfflineIndicator } from './components/OfflineIndicator'
 import { SupabaseConnectionTest } from './components/SupabaseConnectionTest'
+import { AdminLoginPage } from './components/pages/AdminLoginPage'
 
 function HomePage() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
@@ -142,6 +143,8 @@ function HomePage() {
   )
 }
 
+// LoginPage component already EXTRACTED to src/components/pages/LoginPage.tsx - PHASE 2 COMPLETE
+/*
 function LoginPage() {
   const { isAuthenticated, user, loginAsStaff } = useAuth()
   
@@ -215,6 +218,7 @@ function LoginPage() {
     </div>
   )
 }
+*/
 
 function TestPage() {
   return (
@@ -2459,7 +2463,8 @@ function App() {
   )
 }
 
-// 管理者専用ログインページ
+// 管理者専用ログインページ - EXTRACTED to src/components/pages/AdminLoginPage.tsx
+/*
 function AdminLoginPage() {
   const { loginAsStaff } = useAuth()
   const navigate = useNavigate()
@@ -2479,7 +2484,6 @@ function AdminLoginPage() {
   return (
     <div className="min-h-screen bg-purple-50 flex items-center justify-center">
       <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
-        {/* 戻るボタン */}
         <div className="mb-4">
           <Link
             to="/"
@@ -2526,6 +2530,7 @@ function AdminLoginPage() {
     </div>
   )
 }
+*/
 
 // シンプルなスタッフ専用ページ
 function SimpleStaffPage() {
