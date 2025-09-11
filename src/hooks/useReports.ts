@@ -19,13 +19,13 @@ export interface ReportSubmission {
   staff_id: string
   report_id: string
   status: 'pending' | 'completed' | 'partial' | 'has_question' | 'extension_requested'
-  answers?: any
+  answers?: Record<string, string | number | boolean>
   mood?: 'happy' | 'neutral' | 'need_help'
   has_question: boolean
   question?: string
   message?: string
   document_url?: string
-  attachments?: any
+  attachments?: Array<{url: string; name: string; size: number}>
   submitted_at: string
   due_date?: string
   completed_at?: string
@@ -34,7 +34,12 @@ export interface ReportSubmission {
   admin_responded_by?: string
   created_at: string
   // リレーション
-  staff?: any
+  staff?: {
+    id: string
+    name: string
+    role: string
+    email?: string
+  }
   report?: ReportTemplate
 }
 
