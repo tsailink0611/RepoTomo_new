@@ -4,7 +4,6 @@ import { useAuth } from './hooks/useAuth'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { OfflineIndicator } from './components/OfflineIndicator'
 import { PWAInstallPrompt } from './components/PWAInstallPrompt'
-import { IOSInstallGuide } from './components/IOSInstallGuide'
 import { SimpleStaffDashboard } from './components/pages/SimpleStaffDashboard'
 import { SimpleStaffPage } from './components/pages/SimpleStaffPage'
 import { SimpleAdminDashboard } from './components/pages/SimpleAdminDashboard'
@@ -66,7 +65,6 @@ function App() {
       <div>
         <OfflineIndicator />
         <PWAInstallPrompt />
-        <IOSInstallGuide />
         
         <Routes>
           <Route path="/" element={<HomePage />} />

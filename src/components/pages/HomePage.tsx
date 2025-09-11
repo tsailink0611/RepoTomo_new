@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { SupabaseConnectionTest } from '../common/SupabaseConnectionTest'
+import { SupabaseConnectionTest } from '../SupabaseConnectionTest'
 
 export function HomePage() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
